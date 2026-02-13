@@ -1,0 +1,97 @@
+import swaggerJsdoc from "swagger-jsdoc";
+
+const options: swaggerJsdoc.Options = {
+  definition: {
+    openapi: "3.0.0",
+    info: {
+      title: "CAAB API Certificação",
+      version: "1.0.0",
+      description:
+        'REST API (CRUD) for "Primeira Certificação" Google Spreadsheet',
+    },
+    components: {
+      securitySchemes: {
+        basicAuth: {
+          type: "http",
+          scheme: "basic",
+        },
+      },
+      schemas: {
+        Ticket: {
+          type: "object",
+          properties: {
+            ticket: { type: "string", example: "12345678900" },
+          },
+        },
+        Pedido: {
+          type: "object",
+          properties: {
+            uuid: {
+              type: "string",
+              format: "uuid",
+              example: "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+            },
+            ticket: { type: "string", example: "68637750800" },
+            numero_oab: { type: "string", example: "123456" },
+            nome_completo: { type: "string", example: "João da Silva" },
+            subsecao: { type: "string", example: "São Paulo" },
+            data_solicitacao: { type: "string", example: "2026-02-13" },
+            data_liberacao: { type: "string", example: "2026-02-20" },
+            status: { type: "string", example: "aprovado" },
+            anotacoes: { type: "string", example: "Primeira certificação" },
+          },
+        },
+        CreatePedido: {
+          type: "object",
+          required: ["ticket", "nome_completo"],
+          properties: {
+            ticket: { type: "string", example: "68637750800" },
+            nome_completo: { type: "string", example: "João da Silva" },
+            numero_oab: { type: "string", example: "123456" },
+            subsecao: { type: "string", example: "São Paulo" },
+            data_solicitacao: {
+              type: "string",
+              pattern: "^\\d{4}-\\d{2}-\\d{2}$",
+              example: "2026-02-13",
+            },
+            data_liberacao: {
+              type: "string",
+              pattern: "^\\d{4}-\\d{2}-\\d{2}$",
+              example: "2026-02-20",
+            },
+            status: { type: "string", example: "pendente" },
+            anotacoes: { type: "string", example: "Primeira certificação" },
+          },
+        },
+        SuccessResponse: {
+          type: "object",
+          properties: {
+            success: { type: "boolean", example: true },
+            data: { type: "object" },
+          },
+        },
+        ListResponse: {
+          type: "object",
+          properties: {
+            success: { type: "boolean", example: true },
+            count: { type: "integer", example: 5 },
+            data: { type: "array", items: {} },
+          },
+        },
+        ErrorResponse: {
+          type: "object",
+          properties: {
+            success: { type: "boolean", example: false },
+            error: { type: "string", example: "Error message" },
+          },
+        },
+      },
+    },
+    security: [{ basicAuth: [] }],
+  },
+  apis: ["./src/routes/*.ts"],
+};
+
+const swaggerSpec = swaggerJsdoc(options);
+
+export default swaggerSpec;
