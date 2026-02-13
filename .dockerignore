@@ -1,0 +1,10 @@
+node_modules
+npm-debug.log
+.env
+credentials.json
+.git
+.gitignore
+README.md
+CLAUDE.md
+dist
+docs
