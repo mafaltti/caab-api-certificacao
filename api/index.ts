@@ -1,5 +1,4 @@
-import dotenv from "dotenv";
-dotenv.config({ path: ".env.local" });
-import app from "../src/app";
+import "../src/env.js";
+import app from "../src/app.js";
 
 export default app;

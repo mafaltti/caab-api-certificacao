@@ -451,7 +451,7 @@ Create the `CLAUDE.md` file with these sections: Project Overview, Tech Stack, C
 
 ## Key Design Decisions (follow these exactly)
 
-- **CommonJS** module system (`"module": "commonjs"` in tsconfig), not ESM — for maximum compatibility
+- **ESM** module system (`"type": "module"` in package.json, `"module": "NodeNext"` in tsconfig) — all relative imports use `.js` extensions, Node builtins use `node:` protocol
 - **Row deletion** uses `deleteDimension` batchUpdate (deletes the entire spreadsheet row), not clearing cells — this prevents blank rows accumulating
 - **Write lock** is a promise-chain mutex, not a boolean flag — ensures serialized writes even under concurrent requests
 - **Cache invalidation** happens both **before** (to get fresh data for the operation) and **after** (so subsequent reads see the change) every write operation

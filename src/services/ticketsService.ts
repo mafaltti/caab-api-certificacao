@@ -1,5 +1,5 @@
-import { getSheetsClient, getSpreadsheetId } from "../config/sheets";
-import { withWriteLock } from "../utils/writeLock";
+import { getSheetsClient, getSpreadsheetId } from "../config/sheets.js";
+import { withWriteLock } from "../utils/writeLock.js";
 
 const SHEET_NAME = "tickets";
 const RANGE = `${SHEET_NAME}!A:A`;

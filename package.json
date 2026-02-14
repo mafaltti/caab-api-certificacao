@@ -2,6 +2,7 @@
   "name": "caab-api-certificacao",
   "version": "1.0.0",
   "description": "REST API for Primeira Certificação Google Spreadsheet",
+  "type": "module",
   "main": "dist/index.js",
   "engines": {
     "node": ">=18.0.0"

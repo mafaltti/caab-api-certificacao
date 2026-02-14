@@ -1,5 +1,5 @@
 import { google, sheets_v4 } from "googleapis";
-import path from "path";
+import path from "node:path";
 
 const SCOPES = ["https://www.googleapis.com/auth/spreadsheets"];
 

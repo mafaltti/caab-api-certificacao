@@ -1,7 +1,7 @@
 import { Router, Request, Response } from "express";
-import { success, successList, error } from "../utils/response";
-import { createTicketSchema, updateTicketSchema } from "../schemas/ticket";
-import * as ticketsService from "../services/ticketsService";
+import { success, successList, error } from "../utils/response.js";
+import { createTicketSchema, updateTicketSchema } from "../schemas/ticket.js";
+import * as ticketsService from "../services/ticketsService.js";
 
 const router = Router();
 

@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from "express";
-import { error } from "../utils/response";
+import { error } from "../utils/response.js";
 
 interface RateLimitData {
   count: number;
