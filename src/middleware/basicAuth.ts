@@ -3,6 +3,8 @@ import { Request, Response, NextFunction } from "express";
 import { trackAuthFailure } from "./rateLimiter.js";
 import { error } from "../utils/response.js";
 
+const WEAK_PASSWORDS = ["changeme", "password", "admin", "123456"];
+
 let cachedUsers: Record<string, string> | null = null;
 
 function getUsers(): Record<string, string> {
@@ -18,11 +20,23 @@ function getUsers(): Record<string, string> {
   const users: Record<string, string> = {};
 
   usersEnv.split(",").forEach((pair) => {
-    const [username, password] = pair.split(":");
+    const colonIndex = pair.indexOf(":");
+    if (colonIndex === -1) return;
+    const username = pair.substring(0, colonIndex);
+    const password = pair.substring(colonIndex + 1);
     if (username && password) {
       users[username] = password;
     }
   });
+
+  // Startup validation: warn about weak passwords
+  for (const [username, password] of Object.entries(users)) {
+    if (WEAK_PASSWORDS.includes(password.toLowerCase()) || password.length < 8) {
+      console.warn(
+        `WARNING: User "${username}" has a weak password. Please change it immediately.`,
+      );
+    }
+  }
 
   cachedUsers = users;
   return users;

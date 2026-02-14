@@ -1,6 +1,6 @@
 FROM node:20-alpine AS builder
 
-RUN corepack enable && corepack prepare pnpm@latest --activate
+RUN corepack enable && corepack prepare pnpm@9.15.0 --activate
 
 WORKDIR /app
 
@@ -9,6 +9,7 @@ RUN pnpm install --frozen-lockfile
 
 COPY tsconfig.json ./
 COPY src ./src
+COPY scripts ./scripts
 RUN pnpm run build
 
 FROM node:20-alpine
@@ -16,7 +17,7 @@ FROM node:20-alpine
 LABEL maintainer="CAAB Certificação API"
 LABEL description="REST API for Primeira Certificação Google Spreadsheet"
 
-RUN corepack enable && corepack prepare pnpm@latest --activate
+RUN corepack enable && corepack prepare pnpm@9.15.0 --activate
 
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S nodejs -u 1001 -G nodejs

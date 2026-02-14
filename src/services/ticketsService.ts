@@ -1,5 +1,6 @@
 import { getSheetsClient, getSpreadsheetId } from "../config/sheets.js";
-import { withWriteLock } from "../utils/writeLock.js";
+import { ticketsWriteLock } from "../utils/writeLock.js";
+import { NotFoundError, ConflictError, NoTicketsError } from "../utils/errors.js";
 
 const SHEET_NAME = "tickets";
 const RANGE = `${SHEET_NAME}!A:B`;
@@ -12,6 +13,7 @@ interface Ticket {
 
 let cache: Ticket[] | null = null;
 let cacheTime = 0;
+let cachedSheetId: number | null = null;
 
 function invalidateCache() {
   cache = null;
@@ -48,6 +50,8 @@ async function readAllTickets(): Promise<Ticket[]> {
 }
 
 async function getSheetId(): Promise<number> {
+  if (cachedSheetId !== null) return cachedSheetId;
+
   const sheets = await getSheetsClient();
   const spreadsheetId = getSpreadsheetId();
 
@@ -57,12 +61,13 @@ async function getSheetId(): Promise<number> {
   });
 
   const sheet = res.data.sheets?.find(
-    (s) => s.properties?.title === SHEET_NAME
+    (s) => s.properties?.title === SHEET_NAME,
   );
   if (!sheet?.properties?.sheetId && sheet?.properties?.sheetId !== 0) {
     throw new Error(`Sheet "${SHEET_NAME}" not found`);
   }
-  return sheet.properties.sheetId;
+  cachedSheetId = sheet.properties.sheetId;
+  return cachedSheetId;
 }
 
 async function getAllTickets(): Promise<Ticket[]> {
@@ -75,12 +80,12 @@ async function getTicket(ticket: string): Promise<Ticket | null> {
 }
 
 async function createTicket(ticket: string): Promise<Ticket> {
-  return withWriteLock(async () => {
+  return ticketsWriteLock.withWriteLock(async () => {
     // Check if already exists (fresh read)
     invalidateCache();
     const existing = await readAllTickets();
     if (existing.some((t) => t.ticket === ticket)) {
-      throw new Error("Ticket already exists");
+      throw new ConflictError("Ticket already exists");
     }
 
     const sheets = await getSheetsClient();
@@ -102,9 +107,9 @@ async function createTicket(ticket: string): Promise<Ticket> {
 
 async function updateTicket(
   oldTicket: string,
-  newTicket: string
+  newTicket: string,
 ): Promise<Ticket> {
-  return withWriteLock(async () => {
+  return ticketsWriteLock.withWriteLock(async () => {
     invalidateCache();
     const sheets = await getSheetsClient();
     const spreadsheetId = getSpreadsheetId();
@@ -119,7 +124,7 @@ async function updateTicket(
     const rowIndex = rows.findIndex((row, i) => i > 0 && row[0] === oldTicket);
 
     if (rowIndex === -1) {
-      throw new Error("Ticket not found");
+      throw new NotFoundError("Ticket");
     }
 
     const currentStatus = rows[rowIndex][1] || "";
@@ -139,7 +144,7 @@ async function updateTicket(
 }
 
 async function deleteTicket(ticket: string): Promise<void> {
-  return withWriteLock(async () => {
+  return ticketsWriteLock.withWriteLock(async () => {
     invalidateCache();
     const sheets = await getSheetsClient();
     const spreadsheetId = getSpreadsheetId();
@@ -154,7 +159,7 @@ async function deleteTicket(ticket: string): Promise<void> {
     const rowIndex = rows.findIndex((row, i) => i > 0 && row[0] === ticket);
 
     if (rowIndex === -1) {
-      throw new Error("Ticket not found");
+      throw new NotFoundError("Ticket");
     }
 
     const sheetId = await getSheetId();
@@ -198,11 +203,11 @@ async function assignAvailableTicket(): Promise<string> {
   const rows = res.data.values || [];
   // Skip header, find first row with a ticket name and empty status
   const rowIndex = rows.findIndex(
-    (row, i) => i > 0 && row[0] && !row[1]
+    (row, i) => i > 0 && row[0] && !row[1],
   );
 
   if (rowIndex === -1) {
-    throw new Error("No available tickets");
+    throw new NoTicketsError();
   }
 
   const ticket = rows[rowIndex][0];

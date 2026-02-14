@@ -43,9 +43,15 @@ const options: swaggerJsdoc.Options = {
             numero_oab: { type: "string", example: "123456" },
             nome_completo: { type: "string", example: "João da Silva" },
             subsecao: { type: "string", example: "São Paulo" },
-            data_solicitacao: { type: "string", example: "2026-02-13" },
-            data_liberacao: { type: "string", example: "2026-02-20" },
-            status: { type: "string", example: "aprovado" },
+            data_solicitacao: {
+              type: "string",
+              example: "2026-02-13 10:30:00",
+            },
+            data_liberacao: {
+              type: "string",
+              example: "2026-02-20 10:30:00",
+            },
+            status: { type: "string", example: "Aprovado" },
             anotacoes: { type: "string", example: "Primeira certificação" },
           },
         },
@@ -56,18 +62,27 @@ const options: swaggerJsdoc.Options = {
             nome_completo: { type: "string", example: "João da Silva" },
             numero_oab: { type: "string", example: "123456" },
             subsecao: { type: "string", example: "São Paulo" },
+            anotacoes: { type: "string", example: "Primeira certificação" },
+          },
+        },
+        UpdateOrder: {
+          type: "object",
+          description: "All fields are optional for partial updates",
+          properties: {
+            nome_completo: { type: "string", example: "João da Silva" },
+            numero_oab: { type: "string", example: "123456" },
+            subsecao: { type: "string", example: "São Paulo" },
+            anotacoes: { type: "string", example: "Primeira certificação" },
+            ticket: { type: "string", example: "68637750800" },
             data_solicitacao: {
               type: "string",
-              pattern: "^\\d{4}-\\d{2}-\\d{2}$",
-              example: "2026-02-13",
+              example: "2026-02-13 10:30:00",
             },
             data_liberacao: {
               type: "string",
-              pattern: "^\\d{4}-\\d{2}-\\d{2}$",
-              example: "2026-02-20",
+              example: "2026-02-20 10:30:00",
             },
-            status: { type: "string", example: "pendente" },
-            anotacoes: { type: "string", example: "Primeira certificação" },
+            status: { type: "string", example: "Aprovado" },
           },
         },
         SuccessResponse: {
@@ -83,6 +98,41 @@ const options: swaggerJsdoc.Options = {
             success: { type: "boolean", example: true },
             count: { type: "integer", example: 5 },
             data: { type: "array", items: {} },
+          },
+        },
+        PaginatedListResponse: {
+          type: "object",
+          properties: {
+            success: { type: "boolean", example: true },
+            count: {
+              type: "integer",
+              example: 10,
+              description: "Number of items in current page",
+            },
+            total: {
+              type: "integer",
+              example: 42,
+              description: "Total number of matching items",
+            },
+            limit: { type: "integer", example: 50 },
+            offset: { type: "integer", example: 0 },
+            data: { type: "array", items: {} },
+          },
+        },
+        ConflictResponse: {
+          type: "object",
+          properties: {
+            success: { type: "boolean", example: false },
+            error: {
+              type: "string",
+              example: "OAB number already has an order",
+            },
+            data: { $ref: "#/components/schemas/Order" },
+            existing_ticket: { type: "string", example: "68637750800" },
+            existing_date: {
+              type: "string",
+              example: "2026-02-13 10:30:00",
+            },
           },
         },
         ErrorResponse: {
