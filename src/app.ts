@@ -15,8 +15,19 @@ const app = express();
 // Trust proxy for rate limiting (when behind nginx/load balancer)
 app.set("trust proxy", parseInt(process.env.TRUST_PROXY || "1"));
 
-// Security headers
-app.use(helmet());
+// Security headers — relax CSP for Swagger UI CDN resources and inline script
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net"],
+        styleSrc: ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net"],
+        imgSrc: ["'self'", "data:"],
+      },
+    },
+  }),
+);
 
 // Request ID
 app.use((req, res, next) => {
@@ -52,74 +63,36 @@ if (process.env.NODE_ENV === "production") {
   });
 }
 
+// Swagger UI HTML (SRI omitted — @5 resolves to latest 5.x so hashes change on each release)
+const swaggerHtml = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>CAAB API Certificação</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui.css">
+</head>
+<body>
+  <div id="swagger-ui"></div>
+  <script src="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui-standalone-preset.js"></script>
+  <script>
+    SwaggerUIBundle({
+      url: '/docs.json',
+      dom_id: '#swagger-ui',
+      presets: [SwaggerUIBundle.presets.apis, SwaggerUIStandalonePreset],
+      layout: 'StandaloneLayout',
+    });
+  </script>
+</body>
+</html>`;
+
 // Swagger docs — protected in production, open in development
 if (process.env.NODE_ENV !== "production") {
-  app.get("/docs", (_req, res) => {
-    res.send(`<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>CAAB API Certificação</title>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui.css"
-    integrity="sha384-nMNJf6kiGqoE4Kp/48v8ecGB3jTig4E1TOBiuntMdqPQ/stWE3FDGzcwFo3sJl9N"
-    crossorigin="anonymous">
-</head>
-<body>
-  <div id="swagger-ui"></div>
-  <script src="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui-bundle.js"
-    integrity="sha384-R5CQL7YEJk3JvqYTfNjoQSxmqGCPSmX/K/1MNIZ3TNDBfuSXDu7ArvVR1H8dHF1K"
-    crossorigin="anonymous"></script>
-  <script src="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui-standalone-preset.js"
-    integrity="sha384-XiFm7NJPJwMEbm6DgjYjjEJZpLrKQO/6y28ZYkCH2ricuSoijE8NxBbJv3G4pOG5"
-    crossorigin="anonymous"></script>
-  <script>
-    SwaggerUIBundle({
-      url: '/docs.json',
-      dom_id: '#swagger-ui',
-      presets: [SwaggerUIBundle.presets.apis, SwaggerUIStandalonePreset],
-      layout: 'StandaloneLayout',
-    });
-  </script>
-</body>
-</html>`);
-  });
-  app.get("/docs.json", (_req, res) => {
-    res.json(swaggerSpec);
-  });
+  app.get("/docs", (_req, res) => res.send(swaggerHtml));
+  app.get("/docs.json", (_req, res) => res.json(swaggerSpec));
 } else {
-  // In production, protect docs with basic auth
-  app.get("/docs", basicAuth, (_req, res) => {
-    res.send(`<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>CAAB API Certificação</title>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui.css"
-    integrity="sha384-nMNJf6kiGqoE4Kp/48v8ecGB3jTig4E1TOBiuntMdqPQ/stWE3FDGzcwFo3sJl9N"
-    crossorigin="anonymous">
-</head>
-<body>
-  <div id="swagger-ui"></div>
-  <script src="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui-bundle.js"
-    integrity="sha384-R5CQL7YEJk3JvqYTfNjoQSxmqGCPSmX/K/1MNIZ3TNDBfuSXDu7ArvVR1H8dHF1K"
-    crossorigin="anonymous"></script>
-  <script src="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui-standalone-preset.js"
-    integrity="sha384-XiFm7NJPJwMEbm6DgjYjjEJZpLrKQO/6y28ZYkCH2ricuSoijE8NxBbJv3G4pOG5"
-    crossorigin="anonymous"></script>
-  <script>
-    SwaggerUIBundle({
-      url: '/docs.json',
-      dom_id: '#swagger-ui',
-      presets: [SwaggerUIBundle.presets.apis, SwaggerUIStandalonePreset],
-      layout: 'StandaloneLayout',
-    });
-  </script>
-</body>
-</html>`);
-  });
-  app.get("/docs.json", basicAuth, (_req, res) => {
-    res.json(swaggerSpec);
-  });
+  app.get("/docs", basicAuth, (_req, res) => res.send(swaggerHtml));
+  app.get("/docs.json", basicAuth, (_req, res) => res.json(swaggerSpec));
 }
 
 // Health check (no auth)
