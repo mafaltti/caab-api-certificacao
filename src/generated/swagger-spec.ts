@@ -56,15 +56,15 @@ const swaggerSpec = {
           },
           "data_solicitacao": {
             "type": "string",
-            "example": "2026-02-13"
+            "example": "2026-02-13 10:30:00"
           },
           "data_liberacao": {
             "type": "string",
-            "example": "2026-02-20"
+            "example": "2026-02-20 10:30:00"
           },
           "status": {
             "type": "string",
-            "example": "aprovado"
+            "example": "Aprovado"
           },
           "anotacoes": {
             "type": "string",
@@ -90,23 +90,47 @@ const swaggerSpec = {
             "type": "string",
             "example": "São Paulo"
           },
-          "data_solicitacao": {
+          "anotacoes": {
             "type": "string",
-            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
-            "example": "2026-02-13"
+            "example": "Primeira certificação"
+          }
+        }
+      },
+      "UpdateOrder": {
+        "type": "object",
+        "description": "All fields are optional for partial updates",
+        "properties": {
+          "nome_completo": {
+            "type": "string",
+            "example": "João da Silva"
           },
-          "data_liberacao": {
+          "numero_oab": {
             "type": "string",
-            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
-            "example": "2026-02-20"
+            "example": "123456"
           },
-          "status": {
+          "subsecao": {
             "type": "string",
-            "example": "pendente"
+            "example": "São Paulo"
           },
           "anotacoes": {
             "type": "string",
             "example": "Primeira certificação"
+          },
+          "ticket": {
+            "type": "string",
+            "example": "68637750800"
+          },
+          "data_solicitacao": {
+            "type": "string",
+            "example": "2026-02-13 10:30:00"
+          },
+          "data_liberacao": {
+            "type": "string",
+            "example": "2026-02-20 10:30:00"
+          },
+          "status": {
+            "type": "string",
+            "example": "Aprovado"
           }
         }
       },
@@ -136,6 +160,61 @@ const swaggerSpec = {
           "data": {
             "type": "array",
             "items": {}
+          }
+        }
+      },
+      "PaginatedListResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "count": {
+            "type": "integer",
+            "example": 10,
+            "description": "Number of items in current page"
+          },
+          "total": {
+            "type": "integer",
+            "example": 42,
+            "description": "Total number of matching items"
+          },
+          "limit": {
+            "type": "integer",
+            "example": 50
+          },
+          "offset": {
+            "type": "integer",
+            "example": 0
+          },
+          "data": {
+            "type": "array",
+            "items": {}
+          }
+        }
+      },
+      "ConflictResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": false
+          },
+          "error": {
+            "type": "string",
+            "example": "OAB number already has an order"
+          },
+          "data": {
+            "$ref": "#/components/schemas/Order"
+          },
+          "existing_ticket": {
+            "type": "string",
+            "example": "68637750800"
+          },
+          "existing_date": {
+            "type": "string",
+            "example": "2026-02-13 10:30:00"
           }
         }
       },
@@ -190,6 +269,27 @@ const swaggerSpec = {
               "type": "string"
             },
             "description": "Filter by OAB number"
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            },
+            "description": "Number of results per page"
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            },
+            "description": "Number of results to skip"
           }
         ],
         "responses": {
@@ -200,7 +300,7 @@ const swaggerSpec = {
                 "schema": {
                   "allOf": [
                     {
-                      "$ref": "#/components/schemas/ListResponse"
+                      "$ref": "#/components/schemas/PaginatedListResponse"
                     },
                     {
                       "properties": {
@@ -261,6 +361,16 @@ const swaggerSpec = {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "OAB number already has an order",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConflictResponse"
                 }
               }
             }
@@ -330,7 +440,7 @@ const swaggerSpec = {
           }
         }
       },
-      "put": {
+      "patch": {
         "summary": "Update an order (partial)",
         "tags": [
           "Orders"
@@ -352,7 +462,7 @@ const swaggerSpec = {
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/CreateOrder"
+                "$ref": "#/components/schemas/UpdateOrder"
               }
             }
           }
@@ -409,15 +519,8 @@ const swaggerSpec = {
           }
         ],
         "responses": {
-          "200": {
-            "description": "Order deleted",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SuccessResponse"
-                }
-              }
-            }
+          "204": {
+            "description": "Order deleted"
           },
           "404": {
             "description": "Order not found",
@@ -652,15 +755,8 @@ const swaggerSpec = {
           }
         ],
         "responses": {
-          "200": {
-            "description": "Ticket deleted",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SuccessResponse"
-                }
-              }
-            }
+          "204": {
+            "description": "Ticket deleted"
           },
           "404": {
             "description": "Ticket not found",

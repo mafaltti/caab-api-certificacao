@@ -1,7 +1,25 @@
 import crypto from "node:crypto";
 import { getSheetsClient, getSpreadsheetId } from "../config/sheets.js";
-import { withWriteLock } from "../utils/writeLock.js";
+import { ordersWriteLock } from "../utils/writeLock.js";
+import { NotFoundError, ConflictError, NoTicketsError } from "../utils/errors.js";
 import { assignAvailableTicket } from "./ticketsService.js";
+
+function nowBR(): string {
+  const d = new Date();
+  const formatter = new Intl.DateTimeFormat("pt-BR", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  });
+  const parts = formatter.formatToParts(d);
+  const get = (type: string) => parts.find((p) => p.type === type)!.value;
+  return `${get("year")}-${get("month")}-${get("day")} ${get("hour")}:${get("minute")}:${get("second")}`;
+}
 
 const SHEET_NAME = "pedidos";
 const RANGE = `${SHEET_NAME}!A:I`;
@@ -19,8 +37,14 @@ interface Order {
   anotacoes: string;
 }
 
+interface CreateOrderResult {
+  order: Order;
+  conflict?: { existing_ticket: string; existing_date: string };
+}
+
 let cache: Order[] | null = null;
 let cacheTime = 0;
+let cachedSheetId: number | null = null;
 
 function invalidateCache() {
   cache = null;
@@ -79,6 +103,8 @@ async function readAllOrders(): Promise<Order[]> {
 }
 
 async function getSheetId(): Promise<number> {
+  if (cachedSheetId !== null) return cachedSheetId;
+
   const sheets = await getSheetsClient();
   const spreadsheetId = getSpreadsheetId();
 
@@ -88,38 +114,55 @@ async function getSheetId(): Promise<number> {
   });
 
   const sheet = res.data.sheets?.find(
-    (s) => s.properties?.title === SHEET_NAME
+    (s) => s.properties?.title === SHEET_NAME,
   );
   if (!sheet?.properties?.sheetId && sheet?.properties?.sheetId !== 0) {
     throw new Error(`Sheet "${SHEET_NAME}" not found`);
   }
-  return sheet.properties.sheetId;
+  cachedSheetId = sheet.properties.sheetId;
+  return cachedSheetId;
 }
 
 interface OrderFilters {
   status?: string;
   ticket?: string;
   oab?: string;
+  limit?: number;
+  offset?: number;
 }
 
-async function getAllOrders(filters?: OrderFilters): Promise<Order[]> {
+interface PaginatedOrders {
+  orders: Order[];
+  total: number;
+}
+
+async function getAllOrders(filters?: OrderFilters): Promise<PaginatedOrders> {
   let orders = await readAllOrders();
 
   if (filters) {
     if (filters.status) {
       orders = orders.filter(
-        (o) => o.status.toLowerCase() === filters.status!.toLowerCase()
+        (o) => o.status.toLowerCase() === filters.status!.toLowerCase(),
       );
     }
     if (filters.ticket) {
-      orders = orders.filter((o) => o.ticket === filters.ticket);
+      orders = orders.filter(
+        (o) => o.ticket.toLowerCase() === filters.ticket!.toLowerCase(),
+      );
     }
     if (filters.oab) {
-      orders = orders.filter((o) => o.numero_oab === filters.oab);
+      orders = orders.filter(
+        (o) => o.numero_oab.trim().toLowerCase() === filters.oab!.trim().toLowerCase(),
+      );
     }
   }
 
-  return orders;
+  const total = orders.length;
+  const offset = filters?.offset ?? 0;
+  const limit = filters?.limit ?? 50;
+  orders = orders.slice(offset, offset + limit);
+
+  return { orders, total };
 }
 
 async function getOrderById(uuid: string): Promise<Order | null> {
@@ -127,17 +170,29 @@ async function getOrderById(uuid: string): Promise<Order | null> {
   return orders.find((o) => o.uuid === uuid) || null;
 }
 
-type CreateOrderData = Omit<Order, "uuid" | "ticket">;
+type CreateOrderData = Omit<Order, "uuid" | "ticket" | "data_solicitacao" | "data_liberacao" | "status">;
 
-async function createOrder(data: CreateOrderData): Promise<Order> {
-  return withWriteLock(async () => {
+async function createOrder(data: CreateOrderData): Promise<CreateOrderResult> {
+  return ordersWriteLock.withWriteLock(async () => {
     // Check for duplicate OAB number
     invalidateCache();
     const existing = await readAllOrders();
-    const duplicateOab = data.numero_oab && existing.some((o) => o.numero_oab === data.numero_oab);
+    const normalizedOab = data.numero_oab?.trim() || "";
+    const existingOrder = normalizedOab
+      ? existing.find((o) => o.numero_oab.trim() === normalizedOab)
+      : undefined;
+    const duplicateOab = !!existingOrder;
 
     // Only assign a ticket if OAB is not duplicate
-    const ticket = duplicateOab ? "" : await assignAvailableTicket();
+    let ticket = "";
+    if (!duplicateOab) {
+      try {
+        ticket = await assignAvailableTicket();
+      } catch (err) {
+        if (err instanceof NoTicketsError) throw err;
+        throw new NoTicketsError();
+      }
+    }
 
     const sheets = await getSheetsClient();
     const spreadsheetId = getSpreadsheetId();
@@ -145,11 +200,11 @@ async function createOrder(data: CreateOrderData): Promise<Order> {
     const order: Order = {
       uuid: crypto.randomUUID(),
       ticket,
-      numero_oab: data.numero_oab || "",
+      numero_oab: normalizedOab,
       nome_completo: data.nome_completo,
       subsecao: data.subsecao || "",
-      data_solicitacao: data.data_solicitacao || "",
-      data_liberacao: data.data_liberacao || "",
+      data_solicitacao: nowBR(),
+      data_liberacao: nowBR(),
       status: duplicateOab ? "Recusado" : "Aprovado",
       anotacoes: data.anotacoes || "",
     };
@@ -165,11 +220,17 @@ async function createOrder(data: CreateOrderData): Promise<Order> {
 
     invalidateCache();
 
-    if (duplicateOab) {
-      throw new Error("OAB number already has a request");
+    if (duplicateOab && existingOrder) {
+      return {
+        order,
+        conflict: {
+          existing_ticket: existingOrder.ticket,
+          existing_date: existingOrder.data_solicitacao,
+        },
+      };
     }
 
-    return order;
+    return { order };
   });
 }
 
@@ -177,9 +238,9 @@ type UpdateOrderData = Partial<Omit<Order, "uuid">>;
 
 async function updateOrder(
   uuid: string,
-  data: UpdateOrderData
+  data: UpdateOrderData,
 ): Promise<Order> {
-  return withWriteLock(async () => {
+  return ordersWriteLock.withWriteLock(async () => {
     invalidateCache();
     const sheets = await getSheetsClient();
     const spreadsheetId = getSpreadsheetId();
@@ -194,7 +255,7 @@ async function updateOrder(
     const rowIndex = rows.findIndex((row, i) => i > 0 && row[0] === uuid);
 
     if (rowIndex === -1) {
-      throw new Error("Order not found");
+      throw new NotFoundError("Order");
     }
 
     const existing = rowToOrder(rows[rowIndex]);
@@ -225,7 +286,7 @@ async function updateOrder(
 }
 
 async function deleteOrder(uuid: string): Promise<void> {
-  return withWriteLock(async () => {
+  return ordersWriteLock.withWriteLock(async () => {
     invalidateCache();
     const sheets = await getSheetsClient();
     const spreadsheetId = getSpreadsheetId();
@@ -240,7 +301,7 @@ async function deleteOrder(uuid: string): Promise<void> {
     const rowIndex = rows.findIndex((row, i) => i > 0 && row[0] === uuid);
 
     if (rowIndex === -1) {
-      throw new Error("Order not found");
+      throw new NotFoundError("Order");
     }
 
     const sheetId = await getSheetId();
@@ -274,4 +335,6 @@ export {
   updateOrder,
   deleteOrder,
   Order,
+  CreateOrderResult,
+  PaginatedOrders,
 };

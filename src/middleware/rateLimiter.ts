@@ -16,14 +16,17 @@ const AUTH_FAIL_WINDOW_MS = 15 * 60 * 1000;
 const MAX_AUTH_FAILURES = 5;
 
 // Clean up old entries periodically
-setInterval(() => {
-  const now = Date.now();
-  for (const [key, data] of requests.entries()) {
-    if (now - data.windowStart > Math.max(WINDOW_MS, AUTH_FAIL_WINDOW_MS)) {
-      requests.delete(key);
+// Guard for serverless environments (Vercel) where setInterval may cause issues
+if (!process.env.VERCEL) {
+  setInterval(() => {
+    const now = Date.now();
+    for (const [key, data] of requests.entries()) {
+      if (now - data.windowStart > Math.max(WINDOW_MS, AUTH_FAIL_WINDOW_MS)) {
+        requests.delete(key);
+      }
     }
-  }
-}, 60 * 1000);
+  }, 60 * 1000);
+}
 
 function getClientKey(req: Request): string {
   return req.ip || req.socket.remoteAddress || "unknown";
@@ -47,9 +50,16 @@ function rateLimiter(req: Request, res: Response, next: NextFunction) {
 
   data.count++;
 
+  const remaining = Math.max(0, MAX_REQUESTS - data.count);
+  const reset = Math.ceil((data.windowStart + WINDOW_MS) / 1000);
+
+  res.setHeader("X-RateLimit-Limit", MAX_REQUESTS);
+  res.setHeader("X-RateLimit-Remaining", remaining);
+  res.setHeader("X-RateLimit-Reset", reset);
+
   if (data.count > MAX_REQUESTS) {
     const retryAfter = Math.ceil(
-      (data.windowStart + WINDOW_MS - now) / 1000
+      (data.windowStart + WINDOW_MS - now) / 1000,
     );
     res.setHeader("Retry-After", retryAfter);
     return res.status(429).json(error("Too many requests. Please try again later."));
