@@ -150,7 +150,7 @@ async function createOrder(data: CreateOrderData): Promise<Order> {
       subsecao: data.subsecao || "",
       data_solicitacao: data.data_solicitacao || "",
       data_liberacao: data.data_liberacao || "",
-      status: duplicateOab ? "Negado" : (data.status || ""),
+      status: duplicateOab ? "Recusado" : "Aprovado",
       anotacoes: data.anotacoes || "",
     };
 
