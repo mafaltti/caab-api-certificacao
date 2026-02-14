@@ -265,16 +265,6 @@ const swaggerSpec = {
               }
             }
           },
-          "409": {
-            "description": "OAB number already has a request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
           "422": {
             "description": "No available tickets",
             "content": {
