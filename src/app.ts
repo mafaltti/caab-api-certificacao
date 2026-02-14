@@ -1,6 +1,5 @@
 import express from "express";
 import cors from "cors";
-import swaggerUi from "swagger-ui-express";
 import swaggerSpec from "./config/swagger.js";
 import { rateLimiter, authRateLimiter } from "./middleware/rateLimiter.js";
 import basicAuth from "./middleware/basicAuth.js";
@@ -18,8 +17,30 @@ app.use(cors());
 app.use(express.json());
 app.use(rateLimiter);
 
-// Swagger docs (no auth)
-app.use("/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+// Swagger docs (no auth) — CDN-based to work on Vercel serverless
+app.get("/docs", (_req, res) => {
+  res.send(`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>CAAB API Certificação</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui.css">
+</head>
+<body>
+  <div id="swagger-ui"></div>
+  <script src="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui-standalone-preset.js"></script>
+  <script>
+    SwaggerUIBundle({
+      url: '/docs.json',
+      dom_id: '#swagger-ui',
+      presets: [SwaggerUIBundle.presets.apis, SwaggerUIStandalonePreset],
+      layout: 'StandaloneLayout',
+    });
+  </script>
+</body>
+</html>`);
+});
 app.get("/docs.json", (_req, res) => {
   res.json(swaggerSpec);
 });
