@@ -129,12 +129,6 @@ router.get("/:uuid", async (req: Request, res: Response) => {
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
- *       409:
- *         description: OAB number already has a request
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
  *       422:
  *         description: No available tickets
  *         content:

@@ -134,12 +134,10 @@ async function createOrder(data: CreateOrderData): Promise<Order> {
     // Check for duplicate OAB number
     invalidateCache();
     const existing = await readAllOrders();
-    if (data.numero_oab && existing.some((o) => o.numero_oab === data.numero_oab)) {
-      throw new Error("OAB number already has a request");
-    }
+    const duplicateOab = data.numero_oab && existing.some((o) => o.numero_oab === data.numero_oab);
 
-    // Auto-assign an available ticket (marks it as "Atribuído" in the tickets sheet)
-    const ticket = await assignAvailableTicket();
+    // Only assign a ticket if OAB is not duplicate
+    const ticket = duplicateOab ? "" : await assignAvailableTicket();
 
     const sheets = await getSheetsClient();
     const spreadsheetId = getSpreadsheetId();
@@ -152,7 +150,7 @@ async function createOrder(data: CreateOrderData): Promise<Order> {
       subsecao: data.subsecao || "",
       data_solicitacao: data.data_solicitacao || "",
       data_liberacao: data.data_liberacao || "",
-      status: data.status || "",
+      status: duplicateOab ? "Negado" : (data.status || ""),
       anotacoes: data.anotacoes || "",
     };
 
@@ -166,6 +164,11 @@ async function createOrder(data: CreateOrderData): Promise<Order> {
     });
 
     invalidateCache();
+
+    if (duplicateOab) {
+      throw new Error("OAB number already has a request");
+    }
+
     return order;
   });
 }
