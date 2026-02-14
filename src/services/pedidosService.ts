@@ -1,6 +1,6 @@
-import crypto from "crypto";
-import { getSheetsClient, getSpreadsheetId } from "../config/sheets";
-import { withWriteLock } from "../utils/writeLock";
+import crypto from "node:crypto";
+import { getSheetsClient, getSpreadsheetId } from "../config/sheets.js";
+import { withWriteLock } from "../utils/writeLock.js";
 
 const SHEET_NAME = "pedidos";
 const RANGE = `${SHEET_NAME}!A:I`;

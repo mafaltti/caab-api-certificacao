@@ -1,7 +1,7 @@
-import crypto from "crypto";
+import crypto from "node:crypto";
 import { Request, Response, NextFunction } from "express";
-import { trackAuthFailure } from "./rateLimiter";
-import { error } from "../utils/response";
+import { trackAuthFailure } from "./rateLimiter.js";
+import { error } from "../utils/response.js";
 
 let cachedUsers: Record<string, string> | null = null;
 

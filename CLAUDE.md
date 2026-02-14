@@ -40,6 +40,6 @@ REST API (CRUD) for "Primeira Certificação" Google Spreadsheet. Two sheets: `t
 
 ## Code Conventions
 - TypeScript strict mode
-- CommonJS module system (for compatibility)
+- ESM module system (`"type": "module"` + NodeNext)
 - Zod for request validation
 - Standardized JSON responses: `{ success, data }` or `{ success, count, data }` or `{ success, error }`

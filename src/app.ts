@@ -1,10 +1,12 @@
 import express from "express";
 import cors from "cors";
-import { rateLimiter, authRateLimiter } from "./middleware/rateLimiter";
-import basicAuth from "./middleware/basicAuth";
-import ticketsRouter from "./routes/tickets";
-import pedidosRouter from "./routes/pedidos";
-import { error } from "./utils/response";
+import swaggerUi from "swagger-ui-express";
+import swaggerSpec from "./config/swagger.js";
+import { rateLimiter, authRateLimiter } from "./middleware/rateLimiter.js";
+import basicAuth from "./middleware/basicAuth.js";
+import ticketsRouter from "./routes/tickets.js";
+import pedidosRouter from "./routes/pedidos.js";
+import { error } from "./utils/response.js";
 
 const app = express();
 
@@ -15,6 +17,12 @@ app.set("trust proxy", 1);
 app.use(cors());
 app.use(express.json());
 app.use(rateLimiter);
+
+// Swagger docs (no auth)
+app.use("/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+app.get("/docs.json", (_req, res) => {
+  res.json(swaggerSpec);
+});
 
 // Health check (no auth)
 app.get("/health", (_req, res) => {
