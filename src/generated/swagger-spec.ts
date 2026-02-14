@@ -30,7 +30,7 @@ const swaggerSpec = {
           }
         }
       },
-      "Pedido": {
+      "Order": {
         "type": "object",
         "properties": {
           "uuid": {
@@ -72,7 +72,7 @@ const swaggerSpec = {
           }
         }
       },
-      "CreatePedido": {
+      "CreateOrder": {
         "type": "object",
         "required": [
           "nome_completo"
@@ -160,11 +160,11 @@ const swaggerSpec = {
     }
   ],
   "paths": {
-    "/api/pedidos": {
+    "/api/orders": {
       "get": {
-        "summary": "List all pedidos",
+        "summary": "List all orders",
         "tags": [
-          "Pedidos"
+          "Orders"
         ],
         "parameters": [
           {
@@ -194,7 +194,7 @@ const swaggerSpec = {
         ],
         "responses": {
           "200": {
-            "description": "List of pedidos",
+            "description": "List of orders",
             "content": {
               "application/json": {
                 "schema": {
@@ -206,7 +206,7 @@ const swaggerSpec = {
                       "properties": {
                         "data": {
                           "items": {
-                            "$ref": "#/components/schemas/Pedido"
+                            "$ref": "#/components/schemas/Order"
                           }
                         }
                       }
@@ -219,23 +219,23 @@ const swaggerSpec = {
         }
       },
       "post": {
-        "summary": "Create a new pedido (ticket auto-assigned)",
+        "summary": "Create a new order (ticket auto-assigned)",
         "tags": [
-          "Pedidos"
+          "Orders"
         ],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/CreatePedido"
+                "$ref": "#/components/schemas/CreateOrder"
               }
             }
           }
         },
         "responses": {
           "201": {
-            "description": "Pedido created (UUID and ticket auto-assigned by API)",
+            "description": "Order created (UUID and ticket auto-assigned by API)",
             "content": {
               "application/json": {
                 "schema": {
@@ -246,7 +246,7 @@ const swaggerSpec = {
                     {
                       "properties": {
                         "data": {
-                          "$ref": "#/components/schemas/Pedido"
+                          "$ref": "#/components/schemas/Order"
                         }
                       }
                     }
@@ -257,6 +257,16 @@ const swaggerSpec = {
           },
           "400": {
             "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "OAB number already has a request",
             "content": {
               "application/json": {
                 "schema": {
@@ -278,11 +288,11 @@ const swaggerSpec = {
         }
       }
     },
-    "/api/pedidos/{uuid}": {
+    "/api/orders/{uuid}": {
       "get": {
-        "summary": "Get pedido by UUID",
+        "summary": "Get order by UUID",
         "tags": [
-          "Pedidos"
+          "Orders"
         ],
         "parameters": [
           {
@@ -293,12 +303,12 @@ const swaggerSpec = {
               "type": "string",
               "format": "uuid"
             },
-            "description": "Pedido UUID"
+            "description": "Order UUID"
           }
         ],
         "responses": {
           "200": {
-            "description": "Pedido found",
+            "description": "Order found",
             "content": {
               "application/json": {
                 "schema": {
@@ -309,7 +319,7 @@ const swaggerSpec = {
                     {
                       "properties": {
                         "data": {
-                          "$ref": "#/components/schemas/Pedido"
+                          "$ref": "#/components/schemas/Order"
                         }
                       }
                     }
@@ -319,7 +329,7 @@ const swaggerSpec = {
             }
           },
           "404": {
-            "description": "Pedido not found",
+            "description": "Order not found",
             "content": {
               "application/json": {
                 "schema": {
@@ -331,9 +341,9 @@ const swaggerSpec = {
         }
       },
       "put": {
-        "summary": "Update a pedido (partial)",
+        "summary": "Update an order (partial)",
         "tags": [
-          "Pedidos"
+          "Orders"
         ],
         "parameters": [
           {
@@ -344,7 +354,7 @@ const swaggerSpec = {
               "type": "string",
               "format": "uuid"
             },
-            "description": "Pedido UUID"
+            "description": "Order UUID"
           }
         ],
         "requestBody": {
@@ -352,14 +362,14 @@ const swaggerSpec = {
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/CreatePedido"
+                "$ref": "#/components/schemas/CreateOrder"
               }
             }
           }
         },
         "responses": {
           "200": {
-            "description": "Pedido updated",
+            "description": "Order updated",
             "content": {
               "application/json": {
                 "schema": {
@@ -370,7 +380,7 @@ const swaggerSpec = {
                     {
                       "properties": {
                         "data": {
-                          "$ref": "#/components/schemas/Pedido"
+                          "$ref": "#/components/schemas/Order"
                         }
                       }
                     }
@@ -380,7 +390,7 @@ const swaggerSpec = {
             }
           },
           "404": {
-            "description": "Pedido not found",
+            "description": "Order not found",
             "content": {
               "application/json": {
                 "schema": {
@@ -392,9 +402,9 @@ const swaggerSpec = {
         }
       },
       "delete": {
-        "summary": "Remove a pedido",
+        "summary": "Remove an order",
         "tags": [
-          "Pedidos"
+          "Orders"
         ],
         "parameters": [
           {
@@ -405,12 +415,12 @@ const swaggerSpec = {
               "type": "string",
               "format": "uuid"
             },
-            "description": "Pedido UUID"
+            "description": "Order UUID"
           }
         ],
         "responses": {
           "200": {
-            "description": "Pedido deleted",
+            "description": "Order deleted",
             "content": {
               "application/json": {
                 "schema": {
@@ -420,7 +430,7 @@ const swaggerSpec = {
             }
           },
           "404": {
-            "description": "Pedido not found",
+            "description": "Order not found",
             "content": {
               "application/json": {
                 "schema": {

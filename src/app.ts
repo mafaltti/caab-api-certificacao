@@ -4,7 +4,7 @@ import swaggerSpec from "./config/swagger.js";
 import { rateLimiter, authRateLimiter } from "./middleware/rateLimiter.js";
 import basicAuth from "./middleware/basicAuth.js";
 import ticketsRouter from "./routes/tickets.js";
-import pedidosRouter from "./routes/pedidos.js";
+import ordersRouter from "./routes/orders.js";
 import { error } from "./utils/response.js";
 
 const app = express();
@@ -55,7 +55,7 @@ app.get("/health", (_req, res) => {
 
 // API routes (protected)
 app.use("/api/tickets", authRateLimiter, basicAuth, ticketsRouter);
-app.use("/api/pedidos", authRateLimiter, basicAuth, pedidosRouter);
+app.use("/api/orders", authRateLimiter, basicAuth, ordersRouter);
 
 // 404 handler
 app.use((_req, res) => {

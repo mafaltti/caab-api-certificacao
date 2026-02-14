@@ -7,7 +7,7 @@ const SHEET_NAME = "pedidos";
 const RANGE = `${SHEET_NAME}!A:I`;
 const CACHE_TTL = 5 * 60 * 1000;
 
-interface Pedido {
+interface Order {
   uuid: string;
   ticket: string;
   numero_oab: string;
@@ -19,7 +19,7 @@ interface Pedido {
   anotacoes: string;
 }
 
-let cache: Pedido[] | null = null;
+let cache: Order[] | null = null;
 let cacheTime = 0;
 
 function invalidateCache() {
@@ -27,7 +27,7 @@ function invalidateCache() {
   cacheTime = 0;
 }
 
-function rowToPedido(row: string[]): Pedido {
+function rowToOrder(row: string[]): Order {
   return {
     uuid: row[0] || "",
     ticket: row[1] || "",
@@ -41,21 +41,21 @@ function rowToPedido(row: string[]): Pedido {
   };
 }
 
-function pedidoToRow(pedido: Pedido): string[] {
+function orderToRow(order: Order): string[] {
   return [
-    pedido.uuid,
-    pedido.ticket,
-    pedido.numero_oab,
-    pedido.nome_completo,
-    pedido.subsecao,
-    pedido.data_solicitacao,
-    pedido.data_liberacao,
-    pedido.status,
-    pedido.anotacoes,
+    order.uuid,
+    order.ticket,
+    order.numero_oab,
+    order.nome_completo,
+    order.subsecao,
+    order.data_solicitacao,
+    order.data_liberacao,
+    order.status,
+    order.anotacoes,
   ];
 }
 
-async function readAllPedidos(): Promise<Pedido[]> {
+async function readAllOrders(): Promise<Order[]> {
   const now = Date.now();
   if (cache && now - cacheTime < CACHE_TTL) {
     return cache;
@@ -71,11 +71,11 @@ async function readAllPedidos(): Promise<Pedido[]> {
 
   const rows = res.data.values || [];
   // Skip header row
-  const pedidos = rows.slice(1).map((row) => rowToPedido(row));
+  const orders = rows.slice(1).map((row) => rowToOrder(row));
 
-  cache = pedidos;
+  cache = orders;
   cacheTime = Date.now();
-  return pedidos;
+  return orders;
 }
 
 async function getSheetId(): Promise<number> {
@@ -96,48 +96,55 @@ async function getSheetId(): Promise<number> {
   return sheet.properties.sheetId;
 }
 
-interface PedidoFilters {
+interface OrderFilters {
   status?: string;
   ticket?: string;
   oab?: string;
 }
 
-async function getAllPedidos(filters?: PedidoFilters): Promise<Pedido[]> {
-  let pedidos = await readAllPedidos();
+async function getAllOrders(filters?: OrderFilters): Promise<Order[]> {
+  let orders = await readAllOrders();
 
   if (filters) {
     if (filters.status) {
-      pedidos = pedidos.filter(
-        (p) => p.status.toLowerCase() === filters.status!.toLowerCase()
+      orders = orders.filter(
+        (o) => o.status.toLowerCase() === filters.status!.toLowerCase()
       );
     }
     if (filters.ticket) {
-      pedidos = pedidos.filter((p) => p.ticket === filters.ticket);
+      orders = orders.filter((o) => o.ticket === filters.ticket);
     }
     if (filters.oab) {
-      pedidos = pedidos.filter((p) => p.numero_oab === filters.oab);
+      orders = orders.filter((o) => o.numero_oab === filters.oab);
     }
   }
 
-  return pedidos;
+  return orders;
 }
 
-async function getPedidoById(uuid: string): Promise<Pedido | null> {
-  const pedidos = await readAllPedidos();
-  return pedidos.find((p) => p.uuid === uuid) || null;
+async function getOrderById(uuid: string): Promise<Order | null> {
+  const orders = await readAllOrders();
+  return orders.find((o) => o.uuid === uuid) || null;
 }
 
-type CreatePedidoData = Omit<Pedido, "uuid" | "ticket">;
+type CreateOrderData = Omit<Order, "uuid" | "ticket">;
 
-async function createPedido(data: CreatePedidoData): Promise<Pedido> {
+async function createOrder(data: CreateOrderData): Promise<Order> {
   return withWriteLock(async () => {
+    // Check for duplicate OAB number
+    invalidateCache();
+    const existing = await readAllOrders();
+    if (data.numero_oab && existing.some((o) => o.numero_oab === data.numero_oab)) {
+      throw new Error("OAB number already has a request");
+    }
+
     // Auto-assign an available ticket (marks it as "Atribuído" in the tickets sheet)
     const ticket = await assignAvailableTicket();
 
     const sheets = await getSheetsClient();
     const spreadsheetId = getSpreadsheetId();
 
-    const pedido: Pedido = {
+    const order: Order = {
       uuid: crypto.randomUUID(),
       ticket,
       numero_oab: data.numero_oab || "",
@@ -154,21 +161,21 @@ async function createPedido(data: CreatePedidoData): Promise<Pedido> {
       range: RANGE,
       valueInputOption: "RAW",
       requestBody: {
-        values: [pedidoToRow(pedido)],
+        values: [orderToRow(order)],
       },
     });
 
     invalidateCache();
-    return pedido;
+    return order;
   });
 }
 
-type UpdatePedidoData = Partial<Omit<Pedido, "uuid">>;
+type UpdateOrderData = Partial<Omit<Order, "uuid">>;
 
-async function updatePedido(
+async function updateOrder(
   uuid: string,
-  data: UpdatePedidoData
-): Promise<Pedido> {
+  data: UpdateOrderData
+): Promise<Order> {
   return withWriteLock(async () => {
     invalidateCache();
     const sheets = await getSheetsClient();
@@ -184,11 +191,11 @@ async function updatePedido(
     const rowIndex = rows.findIndex((row, i) => i > 0 && row[0] === uuid);
 
     if (rowIndex === -1) {
-      throw new Error("Pedido not found");
+      throw new Error("Order not found");
     }
 
-    const existing = rowToPedido(rows[rowIndex]);
-    const updated: Pedido = {
+    const existing = rowToOrder(rows[rowIndex]);
+    const updated: Order = {
       uuid: existing.uuid,
       ticket: data.ticket ?? existing.ticket,
       numero_oab: data.numero_oab ?? existing.numero_oab,
@@ -205,7 +212,7 @@ async function updatePedido(
       range: `${SHEET_NAME}!A${rowIndex + 1}:I${rowIndex + 1}`,
       valueInputOption: "RAW",
       requestBody: {
-        values: [pedidoToRow(updated)],
+        values: [orderToRow(updated)],
       },
     });
 
@@ -214,7 +221,7 @@ async function updatePedido(
   });
 }
 
-async function deletePedido(uuid: string): Promise<void> {
+async function deleteOrder(uuid: string): Promise<void> {
   return withWriteLock(async () => {
     invalidateCache();
     const sheets = await getSheetsClient();
@@ -230,7 +237,7 @@ async function deletePedido(uuid: string): Promise<void> {
     const rowIndex = rows.findIndex((row, i) => i > 0 && row[0] === uuid);
 
     if (rowIndex === -1) {
-      throw new Error("Pedido not found");
+      throw new Error("Order not found");
     }
 
     const sheetId = await getSheetId();
@@ -258,10 +265,10 @@ async function deletePedido(uuid: string): Promise<void> {
 }
 
 export {
-  getAllPedidos,
-  getPedidoById,
-  createPedido,
-  updatePedido,
-  deletePedido,
-  Pedido,
+  getAllOrders,
+  getOrderById,
+  createOrder,
+  updateOrder,
+  deleteOrder,
+  Order,
 };

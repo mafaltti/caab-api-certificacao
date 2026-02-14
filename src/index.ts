@@ -7,7 +7,7 @@ const server = app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
   console.log(`Health check: http://localhost:${PORT}/health`);
   console.log(`Tickets API: http://localhost:${PORT}/api/tickets`);
-  console.log(`Pedidos API: http://localhost:${PORT}/api/pedidos`);
+  console.log(`Orders API: http://localhost:${PORT}/api/orders`);
 });
 
 function shutdown(signal: string) {
