@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import { getSheetsClient, getSpreadsheetId } from "../config/sheets.js";
 import { withWriteLock } from "../utils/writeLock.js";
+import { assignAvailableTicket } from "./ticketsService.js";
 
 const SHEET_NAME = "pedidos";
 const RANGE = `${SHEET_NAME}!A:I`;
@@ -126,16 +127,19 @@ async function getPedidoById(uuid: string): Promise<Pedido | null> {
   return pedidos.find((p) => p.uuid === uuid) || null;
 }
 
-type CreatePedidoData = Omit<Pedido, "uuid">;
+type CreatePedidoData = Omit<Pedido, "uuid" | "ticket">;
 
 async function createPedido(data: CreatePedidoData): Promise<Pedido> {
   return withWriteLock(async () => {
+    // Auto-assign an available ticket (marks it as "Atribuído" in the tickets sheet)
+    const ticket = await assignAvailableTicket();
+
     const sheets = await getSheetsClient();
     const spreadsheetId = getSpreadsheetId();
 
     const pedido: Pedido = {
       uuid: crypto.randomUUID(),
-      ticket: data.ticket,
+      ticket,
       numero_oab: data.numero_oab || "",
       nome_completo: data.nome_completo,
       subsecao: data.subsecao || "",

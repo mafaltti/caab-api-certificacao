@@ -1,7 +1,7 @@
 # CLAUDE.md
 
 ## Project Overview
-REST API (CRUD) for "Primeira Certificação" Google Spreadsheet. Two sheets: `tickets` (single column) and `pedidos` (9 columns).
+REST API (CRUD) for "Primeira Certificação" Google Spreadsheet. Two sheets: `tickets` (2 columns) and `pedidos` (9 columns).
 
 ## Tech Stack
 - Node.js + TypeScript + Express.js
@@ -28,7 +28,8 @@ REST API (CRUD) for "Primeira Certificação" Google Spreadsheet. Two sheets: `t
 
 ## Spreadsheet
 - ID: `1_EsiaEyJZKKmfpyWU2cwC7D6YkkP1v4OH_127n5Zpj8`
-- Sheet "tickets": column A (Ticket)
+- Sheet "tickets": columns A-B (Ticket, Status) — Status: "" (available), "Atribuído" (assigned), "Cancelado" (cancelled)
+- Ticket auto-assignment: creating a pedido auto-assigns the first available ticket and marks it "Atribuído"
 - Sheet "pedidos": columns A-I (UUID, Ticket, Número da OAB, Nome completo, Subseção, Data Solicitação, Data Liberação, Status, Anotações)
 
 ## Environment Variables

@@ -23,6 +23,12 @@ const options: swaggerJsdoc.Options = {
           type: "object",
           properties: {
             ticket: { type: "string", example: "12345678900" },
+            status: {
+              type: "string",
+              example: "",
+              description:
+                'Ticket status: "" (available), "Atribuído" (assigned), "Cancelado" (cancelled)',
+            },
           },
         },
         Pedido: {
@@ -45,9 +51,8 @@ const options: swaggerJsdoc.Options = {
         },
         CreatePedido: {
           type: "object",
-          required: ["ticket", "nome_completo"],
+          required: ["nome_completo"],
           properties: {
-            ticket: { type: "string", example: "68637750800" },
             nome_completo: { type: "string", example: "João da Silva" },
             numero_oab: { type: "string", example: "123456" },
             subsecao: { type: "string", example: "São Paulo" },

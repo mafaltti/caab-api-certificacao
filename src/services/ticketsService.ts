@@ -2,10 +2,15 @@ import { getSheetsClient, getSpreadsheetId } from "../config/sheets.js";
 import { withWriteLock } from "../utils/writeLock.js";
 
 const SHEET_NAME = "tickets";
-const RANGE = `${SHEET_NAME}!A:A`;
+const RANGE = `${SHEET_NAME}!A:B`;
 const CACHE_TTL = 5 * 60 * 1000;
 
-let cache: string[] | null = null;
+interface Ticket {
+  ticket: string;
+  status: string;
+}
+
+let cache: Ticket[] | null = null;
 let cacheTime = 0;
 
 function invalidateCache() {
@@ -13,7 +18,7 @@ function invalidateCache() {
   cacheTime = 0;
 }
 
-async function readAllTickets(): Promise<string[]> {
+async function readAllTickets(): Promise<Ticket[]> {
   const now = Date.now();
   if (cache && now - cacheTime < CACHE_TTL) {
     return cache;
@@ -28,8 +33,14 @@ async function readAllTickets(): Promise<string[]> {
   });
 
   const rows = res.data.values || [];
-  // Skip header row
-  const tickets = rows.slice(1).map((row) => row[0] || "").filter(Boolean);
+  // Skip header row, filter out empty ticket names
+  const tickets = rows
+    .slice(1)
+    .filter((row) => row[0])
+    .map((row) => ({
+      ticket: row[0] || "",
+      status: row[1] || "",
+    }));
 
   cache = tickets;
   cacheTime = Date.now();
@@ -54,24 +65,21 @@ async function getSheetId(): Promise<number> {
   return sheet.properties.sheetId;
 }
 
-async function getAllTickets(): Promise<string[]> {
+async function getAllTickets(): Promise<Ticket[]> {
   return readAllTickets();
 }
 
-async function getTicket(
-  ticket: string
-): Promise<{ ticket: string } | null> {
+async function getTicket(ticket: string): Promise<Ticket | null> {
   const tickets = await readAllTickets();
-  const found = tickets.find((t) => t === ticket);
-  return found ? { ticket: found } : null;
+  return tickets.find((t) => t.ticket === ticket) || null;
 }
 
-async function createTicket(ticket: string): Promise<{ ticket: string }> {
+async function createTicket(ticket: string): Promise<Ticket> {
   return withWriteLock(async () => {
     // Check if already exists (fresh read)
     invalidateCache();
     const existing = await readAllTickets();
-    if (existing.includes(ticket)) {
+    if (existing.some((t) => t.ticket === ticket)) {
       throw new Error("Ticket already exists");
     }
 
@@ -83,19 +91,19 @@ async function createTicket(ticket: string): Promise<{ ticket: string }> {
       range: RANGE,
       valueInputOption: "RAW",
       requestBody: {
-        values: [[ticket]],
+        values: [[ticket, ""]],
       },
     });
 
     invalidateCache();
-    return { ticket };
+    return { ticket, status: "" };
   });
 }
 
 async function updateTicket(
   oldTicket: string,
   newTicket: string
-): Promise<{ ticket: string }> {
+): Promise<Ticket> {
   return withWriteLock(async () => {
     invalidateCache();
     const sheets = await getSheetsClient();
@@ -114,6 +122,8 @@ async function updateTicket(
       throw new Error("Ticket not found");
     }
 
+    const currentStatus = rows[rowIndex][1] || "";
+
     await sheets.spreadsheets.values.update({
       spreadsheetId,
       range: `${SHEET_NAME}!A${rowIndex + 1}`,
@@ -124,7 +134,7 @@ async function updateTicket(
     });
 
     invalidateCache();
-    return { ticket: newTicket };
+    return { ticket: newTicket, status: currentStatus };
   });
 }
 
@@ -171,10 +181,52 @@ async function deleteTicket(ticket: string): Promise<void> {
   });
 }
 
+/**
+ * Finds the first available ticket (empty status) and marks it as "Atribuído".
+ * IMPORTANT: Must be called within a withWriteLock() to prevent race conditions.
+ */
+async function assignAvailableTicket(): Promise<string> {
+  const sheets = await getSheetsClient();
+  const spreadsheetId = getSpreadsheetId();
+
+  // Fresh read to find available ticket
+  const res = await sheets.spreadsheets.values.get({
+    spreadsheetId,
+    range: RANGE,
+  });
+
+  const rows = res.data.values || [];
+  // Skip header, find first row with a ticket name and empty status
+  const rowIndex = rows.findIndex(
+    (row, i) => i > 0 && row[0] && !row[1]
+  );
+
+  if (rowIndex === -1) {
+    throw new Error("No available tickets");
+  }
+
+  const ticket = rows[rowIndex][0];
+
+  // Update status to "Atribuído"
+  await sheets.spreadsheets.values.update({
+    spreadsheetId,
+    range: `${SHEET_NAME}!B${rowIndex + 1}`,
+    valueInputOption: "RAW",
+    requestBody: {
+      values: [["Atribuído"]],
+    },
+  });
+
+  invalidateCache();
+  return ticket;
+}
+
 export {
   getAllTickets,
   getTicket,
   createTicket,
   updateTicket,
   deleteTicket,
+  assignAvailableTicket,
+  Ticket,
 };

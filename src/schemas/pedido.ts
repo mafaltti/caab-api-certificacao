@@ -1,7 +1,6 @@
 import { z } from "zod";
 
 const createPedidoSchema = z.object({
-  ticket: z.string().min(1),
   nome_completo: z.string().min(1),
   numero_oab: z.string().optional().default(""),
   subsecao: z.string().optional().default(""),
@@ -19,6 +18,10 @@ const createPedidoSchema = z.object({
   anotacoes: z.string().optional().default(""),
 });
 
-const updatePedidoSchema = createPedidoSchema.partial();
+const updatePedidoSchema = createPedidoSchema
+  .extend({
+    ticket: z.string().min(1),
+  })
+  .partial();
 
 export { createPedidoSchema, updatePedidoSchema };

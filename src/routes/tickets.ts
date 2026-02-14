@@ -27,7 +27,7 @@ const router = Router();
 router.get("/", async (_req: Request, res: Response) => {
   try {
     const tickets = await ticketsService.getAllTickets();
-    res.json(successList(tickets.map((t) => ({ ticket: t }))));
+    res.json(successList(tickets));
   } catch (err) {
     console.error("Error fetching tickets:", err);
     res.status(500).json(error("Failed to fetch tickets"));
