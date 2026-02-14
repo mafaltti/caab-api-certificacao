@@ -1,7 +1,7 @@
 # CLAUDE.md
 
 ## Project Overview
-REST API (CRUD) for "Primeira Certificação" Google Spreadsheet. Two sheets: `tickets` (2 columns) and `pedidos` (9 columns).
+REST API (CRUD) for "Primeira Certificação" Google Spreadsheet. Two sheets: `tickets` (2 columns) and `orders` (9 columns, sheet name "pedidos").
 
 ## Tech Stack
 - Node.js + TypeScript + Express.js
@@ -22,15 +22,15 @@ REST API (CRUD) for "Primeira Certificação" Google Spreadsheet. Two sheets: `t
 - `src/config/sheets.ts` — Google Auth (supports file + JSON env var)
 - `src/middleware/` — Basic Auth (timing-safe), rate limiting (100 req/min, block after 5 auth failures)
 - `src/services/` — Business logic with 5-min cache TTL, write lock mutex
-- `src/routes/` — Express routers for /api/tickets and /api/pedidos
+- `src/routes/` — Express routers for /api/tickets and /api/orders
 - `src/schemas/` — Zod validation schemas
 - `src/utils/` — Response helpers, write lock
 
 ## Spreadsheet
 - ID: `1_EsiaEyJZKKmfpyWU2cwC7D6YkkP1v4OH_127n5Zpj8`
 - Sheet "tickets": columns A-B (Ticket, Status) — Status: "" (available), "Atribuído" (assigned), "Cancelado" (cancelled)
-- Ticket auto-assignment: creating a pedido auto-assigns the first available ticket and marks it "Atribuído"
-- Sheet "pedidos": columns A-I (UUID, Ticket, Número da OAB, Nome completo, Subseção, Data Solicitação, Data Liberação, Status, Anotações)
+- Ticket auto-assignment: creating an order auto-assigns the first available ticket and marks it "Atribuído"
+- Sheet "pedidos" (orders): columns A-I (UUID, Ticket, Número da OAB, Nome completo, Subseção, Data Solicitação, Data Liberação, Status, Anotações)
 
 ## Environment Variables
 - `GOOGLE_APPLICATION_CREDENTIALS` — path to credentials.json (Docker/VPS)

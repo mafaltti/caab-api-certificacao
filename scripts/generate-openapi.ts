@@ -31,7 +31,7 @@ const options: swaggerJsdoc.Options = {
             },
           },
         },
-        Pedido: {
+        Order: {
           type: "object",
           properties: {
             uuid: {
@@ -49,7 +49,7 @@ const options: swaggerJsdoc.Options = {
             anotacoes: { type: "string", example: "Primeira certificação" },
           },
         },
-        CreatePedido: {
+        CreateOrder: {
           type: "object",
           required: ["nome_completo"],
           properties: {

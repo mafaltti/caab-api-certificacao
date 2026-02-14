@@ -1,16 +1,16 @@
 import { Router, Request, Response } from "express";
 import { success, successList, error } from "../utils/response.js";
-import { createPedidoSchema, updatePedidoSchema } from "../schemas/pedido.js";
-import * as pedidosService from "../services/pedidosService.js";
+import { createOrderSchema, updateOrderSchema } from "../schemas/order.js";
+import * as ordersService from "../services/ordersService.js";
 
 const router = Router();
 
 /**
  * @openapi
- * /api/pedidos:
+ * /api/orders:
  *   get:
- *     summary: List all pedidos
- *     tags: [Pedidos]
+ *     summary: List all orders
+ *     tags: [Orders]
  *     parameters:
  *       - in: query
  *         name: status
@@ -29,7 +29,7 @@ const router = Router();
  *         description: Filter by OAB number
  *     responses:
  *       200:
- *         description: List of pedidos
+ *         description: List of orders
  *         content:
  *           application/json:
  *             schema:
@@ -38,7 +38,7 @@ const router = Router();
  *                 - properties:
  *                     data:
  *                       items:
- *                         $ref: '#/components/schemas/Pedido'
+ *                         $ref: '#/components/schemas/Order'
  */
 router.get("/", async (req: Request, res: Response) => {
   try {
@@ -47,20 +47,20 @@ router.get("/", async (req: Request, res: Response) => {
       ticket: req.query.ticket as string | undefined,
       oab: req.query.oab as string | undefined,
     };
-    const pedidos = await pedidosService.getAllPedidos(filters);
-    res.json(successList(pedidos));
+    const orders = await ordersService.getAllOrders(filters);
+    res.json(successList(orders));
   } catch (err) {
-    console.error("Error fetching pedidos:", err);
-    res.status(500).json(error("Failed to fetch pedidos"));
+    console.error("Error fetching orders:", err);
+    res.status(500).json(error("Failed to fetch orders"));
   }
 });
 
 /**
  * @openapi
- * /api/pedidos/{uuid}:
+ * /api/orders/{uuid}:
  *   get:
- *     summary: Get pedido by UUID
- *     tags: [Pedidos]
+ *     summary: Get order by UUID
+ *     tags: [Orders]
  *     parameters:
  *       - in: path
  *         name: uuid
@@ -68,10 +68,10 @@ router.get("/", async (req: Request, res: Response) => {
  *         schema:
  *           type: string
  *           format: uuid
- *         description: Pedido UUID
+ *         description: Order UUID
  *     responses:
  *       200:
- *         description: Pedido found
+ *         description: Order found
  *         content:
  *           application/json:
  *             schema:
@@ -79,9 +79,9 @@ router.get("/", async (req: Request, res: Response) => {
  *                 - $ref: '#/components/schemas/SuccessResponse'
  *                 - properties:
  *                     data:
- *                       $ref: '#/components/schemas/Pedido'
+ *                       $ref: '#/components/schemas/Order'
  *       404:
- *         description: Pedido not found
+ *         description: Order not found
  *         content:
  *           application/json:
  *             schema:
@@ -89,32 +89,32 @@ router.get("/", async (req: Request, res: Response) => {
  */
 router.get("/:uuid", async (req: Request, res: Response) => {
   try {
-    const pedido = await pedidosService.getPedidoById(req.params.uuid);
-    if (!pedido) {
-      return res.status(404).json(error("Pedido not found"));
+    const order = await ordersService.getOrderById(req.params.uuid);
+    if (!order) {
+      return res.status(404).json(error("Order not found"));
     }
-    res.json(success(pedido));
+    res.json(success(order));
   } catch (err) {
-    console.error("Error fetching pedido:", err);
-    res.status(500).json(error("Failed to fetch pedido"));
+    console.error("Error fetching order:", err);
+    res.status(500).json(error("Failed to fetch order"));
   }
 });
 
 /**
  * @openapi
- * /api/pedidos:
+ * /api/orders:
  *   post:
- *     summary: Create a new pedido (ticket auto-assigned)
- *     tags: [Pedidos]
+ *     summary: Create a new order (ticket auto-assigned)
+ *     tags: [Orders]
  *     requestBody:
  *       required: true
  *       content:
  *         application/json:
  *           schema:
- *             $ref: '#/components/schemas/CreatePedido'
+ *             $ref: '#/components/schemas/CreateOrder'
  *     responses:
  *       201:
- *         description: Pedido created (UUID and ticket auto-assigned by API)
+ *         description: Order created (UUID and ticket auto-assigned by API)
  *         content:
  *           application/json:
  *             schema:
@@ -122,9 +122,15 @@ router.get("/:uuid", async (req: Request, res: Response) => {
  *                 - $ref: '#/components/schemas/SuccessResponse'
  *                 - properties:
  *                     data:
- *                       $ref: '#/components/schemas/Pedido'
+ *                       $ref: '#/components/schemas/Order'
  *       400:
  *         description: Validation error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       409:
+ *         description: OAB number already has a request
  *         content:
  *           application/json:
  *             schema:
@@ -137,28 +143,29 @@ router.get("/:uuid", async (req: Request, res: Response) => {
  *               $ref: '#/components/schemas/ErrorResponse'
  */
 router.post("/", async (req: Request, res: Response) => {
-  const parsed = createPedidoSchema.safeParse(req.body);
+  const parsed = createOrderSchema.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json(error(parsed.error.errors[0].message));
   }
 
   try {
-    const pedido = await pedidosService.createPedido(parsed.data);
-    res.status(201).json(success(pedido));
+    const order = await ordersService.createOrder(parsed.data);
+    res.status(201).json(success(order));
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Failed to create pedido";
-    const status = message === "No available tickets" ? 422 : 500;
-    console.error("Error creating pedido:", err);
+    const message = err instanceof Error ? err.message : "Failed to create order";
+    const status = message === "No available tickets" ? 422
+      : message === "OAB number already has a request" ? 409 : 500;
+    console.error("Error creating order:", err);
     res.status(status).json(error(message));
   }
 });
 
 /**
  * @openapi
- * /api/pedidos/{uuid}:
+ * /api/orders/{uuid}:
  *   put:
- *     summary: Update a pedido (partial)
- *     tags: [Pedidos]
+ *     summary: Update an order (partial)
+ *     tags: [Orders]
  *     parameters:
  *       - in: path
  *         name: uuid
@@ -166,16 +173,16 @@ router.post("/", async (req: Request, res: Response) => {
  *         schema:
  *           type: string
  *           format: uuid
- *         description: Pedido UUID
+ *         description: Order UUID
  *     requestBody:
  *       required: true
  *       content:
  *         application/json:
  *           schema:
- *             $ref: '#/components/schemas/CreatePedido'
+ *             $ref: '#/components/schemas/CreateOrder'
  *     responses:
  *       200:
- *         description: Pedido updated
+ *         description: Order updated
  *         content:
  *           application/json:
  *             schema:
@@ -183,40 +190,40 @@ router.post("/", async (req: Request, res: Response) => {
  *                 - $ref: '#/components/schemas/SuccessResponse'
  *                 - properties:
  *                     data:
- *                       $ref: '#/components/schemas/Pedido'
+ *                       $ref: '#/components/schemas/Order'
  *       404:
- *         description: Pedido not found
+ *         description: Order not found
  *         content:
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
  */
 router.put("/:uuid", async (req: Request, res: Response) => {
-  const parsed = updatePedidoSchema.safeParse(req.body);
+  const parsed = updateOrderSchema.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json(error(parsed.error.errors[0].message));
   }
 
   try {
-    const pedido = await pedidosService.updatePedido(
+    const order = await ordersService.updateOrder(
       req.params.uuid,
       parsed.data
     );
-    res.json(success(pedido));
+    res.json(success(order));
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Failed to update pedido";
-    const status = message === "Pedido not found" ? 404 : 500;
-    console.error("Error updating pedido:", err);
+    const message = err instanceof Error ? err.message : "Failed to update order";
+    const status = message === "Order not found" ? 404 : 500;
+    console.error("Error updating order:", err);
     res.status(status).json(error(message));
   }
 });
 
 /**
  * @openapi
- * /api/pedidos/{uuid}:
+ * /api/orders/{uuid}:
  *   delete:
- *     summary: Remove a pedido
- *     tags: [Pedidos]
+ *     summary: Remove an order
+ *     tags: [Orders]
  *     parameters:
  *       - in: path
  *         name: uuid
@@ -224,16 +231,16 @@ router.put("/:uuid", async (req: Request, res: Response) => {
  *         schema:
  *           type: string
  *           format: uuid
- *         description: Pedido UUID
+ *         description: Order UUID
  *     responses:
  *       200:
- *         description: Pedido deleted
+ *         description: Order deleted
  *         content:
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/SuccessResponse'
  *       404:
- *         description: Pedido not found
+ *         description: Order not found
  *         content:
  *           application/json:
  *             schema:
@@ -241,12 +248,12 @@ router.put("/:uuid", async (req: Request, res: Response) => {
  */
 router.delete("/:uuid", async (req: Request, res: Response) => {
   try {
-    await pedidosService.deletePedido(req.params.uuid);
-    res.json(success({ message: "Pedido deleted" }));
+    await ordersService.deleteOrder(req.params.uuid);
+    res.json(success({ message: "Order deleted" }));
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Failed to delete pedido";
-    const status = message === "Pedido not found" ? 404 : 500;
-    console.error("Error deleting pedido:", err);
+    const message = err instanceof Error ? err.message : "Failed to delete order";
+    const status = message === "Order not found" ? 404 : 500;
+    console.error("Error deleting order:", err);
     res.status(status).json(error(message));
   }
 });
